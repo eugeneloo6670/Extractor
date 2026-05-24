@@ -1,0 +1,14 @@
+node_modules/
+.npm-cache/
+.n8n-data/
+logs/
+dist/
+test-artifacts/
+
+.env
+.env.*
+!.env.example
+
+*.log
+Thumbs.db
+.DS_Store

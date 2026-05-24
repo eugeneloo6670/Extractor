@@ -1,0 +1,29 @@
+{
+  "name": "local-n8n-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start:n8n": "scripts\\start-n8n.cmd",
+    "start:web": "vite --host 127.0.0.1 --port 5173",
+    "dev": "concurrently -n n8n,web -c green,cyan \"scripts\\start-n8n.cmd\" \"vite --host 127.0.0.1 --port 5173\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "stop:n8n": "powershell -ExecutionPolicy Bypass -File ./scripts/stop-n8n.ps1"
+  },
+  "dependencies": {
+    "lucide-react": "^1.16.0",
+    "n8n": "2.21.7",
+    "pdfjs-dist": "^5.7.284",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "xlsx": "^0.20.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^9.2.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14"
+  }
+}
