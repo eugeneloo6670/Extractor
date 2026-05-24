@@ -6,8 +6,15 @@ export type Stage =
   | "writing"
   | "complete";
 
+export type BatchStatus =
+  | "queued"
+  | "preparing"
+  | "extracting"
+  | "ready"
+  | "failed"
+  | "exported";
+
 export type ExtractedFields = {
-  document_type: string;
   vendor_name: string;
   document_number: string;
   document_date: string;
@@ -16,7 +23,7 @@ export type ExtractedFields = {
   tax: string;
   total: string;
   payment_method: string;
-  confidence: number;
+  confidence: number | "";
   notes: string;
 };
 
@@ -33,4 +40,16 @@ export type ExtractResponse = {
   original_file_name: string;
   extracted: ExtractedFields;
   warnings?: string[];
+};
+
+export type BatchItem = {
+  id: string;
+  file?: File;
+  source: "upload" | "manual";
+  originalFileName: string;
+  status: BatchStatus;
+  extracted: ExtractedFields;
+  warnings: string[];
+  error: string;
+  previewUrl: string;
 };

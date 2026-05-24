@@ -156,7 +156,7 @@ function stageMessage(stage: Stage): string {
     case "preparing":
       return "Preparing document.";
     case "extracting":
-      return "Waiting for n8n extraction.";
+      return "Waiting for local extraction.";
     case "review":
       return "Ready to export.";
     case "writing":

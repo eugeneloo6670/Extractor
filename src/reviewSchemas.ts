@@ -27,7 +27,6 @@ export const reviewSchemas: ReviewSchema[] = [
         id: "identity",
         title: "Document",
         fields: [
-          { key: "document_type", label: "Document Type" },
           { key: "vendor_name", label: "Vendor Name" },
           { key: "document_number", label: "Document Number" },
           { key: "document_date", label: "Document Date", type: "date" },
@@ -49,7 +48,7 @@ export const reviewSchemas: ReviewSchema[] = [
         fields: [
           { key: "payment_method", label: "Payment Method" },
           { key: "confidence", label: "Confidence", type: "number" },
-          { key: "notes", label: "Notes", type: "textarea" },
+          { key: "notes", label: "Comments", type: "textarea" },
         ],
       },
     ],
@@ -62,7 +61,6 @@ export const reviewSchemas: ReviewSchema[] = [
         id: "identity",
         title: "Document",
         fields: [
-          { key: "document_type", label: "Document Type" },
           { key: "vendor_name", label: "Vendor Name" },
           { key: "document_number", label: "Invoice Number" },
           { key: "document_date", label: "Invoice Date", type: "date" },
@@ -84,7 +82,7 @@ export const reviewSchemas: ReviewSchema[] = [
         fields: [
           { key: "payment_method", label: "Payment Method" },
           { key: "confidence", label: "Confidence", type: "number" },
-          { key: "notes", label: "Notes", type: "textarea" },
+          { key: "notes", label: "Comments", type: "textarea" },
         ],
       },
     ],
