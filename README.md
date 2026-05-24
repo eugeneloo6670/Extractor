@@ -37,14 +37,36 @@ The Issues menu stays out of the way until something needs attention. It groups 
 
 ![DocScalpel issue helper](docs/images/docscalpel-issue-helper.png)
 
-## Setup
+## Prerequisites
+
+- Windows 10 or 11.
+- Node.js 22 or newer.
+- An OpenAI API key with access to `gpt-4o-mini`.
+- Internet access for AI extraction.
+- PowerShell or Windows Terminal.
+
+## First-Time Setup
+
+Clone the repository:
+
+```powershell
+git clone https://github.com/eugeneloo6670/DocScalpel.git
+Set-Location DocScalpel
+```
+
+Install dependencies:
 
 ```powershell
 npm.cmd install
+```
+
+Create a local environment file:
+
+```powershell
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and add your OpenAI API key:
+Open `.env` and add your OpenAI API key:
 
 ```text
 OPENAI_API_KEY=sk-your-openai-api-key
@@ -52,9 +74,11 @@ OPENAI_MODEL=gpt-4o-mini
 LOCAL_API_PORT=8787
 ```
 
-## Run
+Important: `.env` is ignored by Git. Do not commit your real API key.
 
-Browser development mode:
+## Run In Browser
+
+Start the local API and browser app together:
 
 ```powershell
 npm.cmd run dev
@@ -66,38 +90,82 @@ Open:
 http://127.0.0.1:5173
 ```
 
-The local API runs at:
+The browser mode runs two local services:
 
 ```text
-GET http://127.0.0.1:8787/api/health
-POST http://127.0.0.1:8787/api/document-extract
+Web app:   http://127.0.0.1:5173
+Local API: http://127.0.0.1:8787
 ```
 
-Desktop development mode:
+You can check the API here:
+
+```text
+http://127.0.0.1:8787/api/health
+```
+
+## Run As Desktop App
+
+For desktop development mode:
 
 ```powershell
 npm.cmd run desktop:dev
 ```
 
-Desktop production-style run:
+For a production-style desktop run:
 
 ```powershell
 npm.cmd run desktop
 ```
 
-Package an unpacked Windows desktop app:
+To create an unpacked Windows desktop app:
 
 ```powershell
 npm.cmd run package:win
 ```
 
-Packaged desktop builds do not include `.env`. After installing, create this file if you want the installed app to hold its own settings:
+The packaged app is written to:
+
+```text
+release\DocScalpel-win32-x64\DocScalpel.exe
+```
+
+If you want a folder shortcut, create one pointing to that executable. The current project may already include `DocScalpel.lnk`, which points at the packaged executable in `release\DocScalpel-win32-x64`.
+
+## Environment File For Packaged Desktop Builds
+
+Packaged desktop builds do not include your project `.env` file. For an installed or copied desktop build, create this file:
 
 ```text
 %APPDATA%\DocScalpel\.env
 ```
 
-Use the same values shown in the setup section.
+Use the same values:
+
+```text
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+LOCAL_API_PORT=8787
+```
+
+The Electron desktop app starts the local API automatically.
+
+## Common Commands
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+npm.cmd run desktop:dev
+npm.cmd run desktop
+npm.cmd run build
+npm.cmd run package:win
+```
+
+## Local API Endpoints
+
+```text
+GET http://127.0.0.1:8787/api/health
+POST http://127.0.0.1:8787/api/document-extract
+```
 
 ## Bulk Upload Flow
 
