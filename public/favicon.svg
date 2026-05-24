@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DocScalpel icon">
+  <rect width="64" height="64" rx="14" fill="#fff7e5"/>
+  <path
+    d="M14 43.5 40.8 16.7c1.9-1.9 5-1.9 6.9 0l1.6 1.6c1.9 1.9 1.9 5 0 6.9L22.5 52H14v-8.5Z"
+    fill="#1f6f4a"
+  />
+  <path
+    d="m34.6 22.9 6.5-6.5c1.7-1.7 4.4-1.7 6.1 0l.4.4-9.5 9.5-3.5-3.4Z"
+    fill="#3f8f61"
+  />
+  <path
+    d="M14 43.5 33.2 24.3l6.5 6.5L22.5 52H14v-8.5Z"
+    fill="#1f6f4a"
+  />
+  <path d="M20.2 45.7 39.5 26.4" stroke="#fff7e5" stroke-width="3.8" stroke-linecap="round"/>
+  <path d="M22.5 52 14 43.5V52h8.5Z" fill="#111111" opacity=".86"/>
+  <circle cx="47.2" cy="19.8" r="2.7" fill="#111111" opacity=".78"/>
+</svg>

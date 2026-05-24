@@ -125,7 +125,7 @@ export default function App() {
     try {
       setError("");
       setStage("writing");
-      const result = downloadApprovedWorkbookRows(rows);
+      const result = await downloadApprovedWorkbookRows(rows);
       setExportResult(result);
       setItems((current) =>
         current.map((item) =>

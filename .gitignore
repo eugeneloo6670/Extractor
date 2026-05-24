@@ -3,6 +3,7 @@ node_modules/
 .n8n-data/
 logs/
 dist/
+release/
 test-artifacts/
 
 .env

@@ -1,5 +1,7 @@
-import * as XLSX from "xlsx-js-style";
 import type { ExtractedFields } from "./types";
+
+type XlsxModule = typeof import("xlsx-js-style");
+type Worksheet = Record<string, any>;
 
 export const workbookHeaders = [
   "Processed At",
@@ -47,17 +49,18 @@ export type ApprovedWorkbookRow = {
 export function downloadApprovedWorkbook(
   originalFileName: string,
   extracted: ExtractedFields,
-): ExportResult {
+): Promise<ExportResult> {
   return downloadApprovedWorkbookRows([{ originalFileName, extracted }]);
 }
 
-export function downloadApprovedWorkbookRows(
+export async function downloadApprovedWorkbookRows(
   rows: ApprovedWorkbookRow[],
-): ExportResult {
+): Promise<ExportResult> {
   if (!rows.length) {
     throw new Error("There are no extracted rows to export.");
   }
 
+  const XLSX = await import("xlsx-js-style");
   const processedAt = new Date().toISOString();
   const dataRows = rows.map(({ originalFileName, extracted }) => [
     processedAt,
@@ -80,7 +83,7 @@ export function downloadApprovedWorkbookRows(
     s: { r: 0, c: 0 },
     e: { r: dataRows.length, c: workbookHeaders.length - 1 },
   }) };
-  applyWorksheetStyles(worksheet, dataRows.length);
+  applyWorksheetStyles(XLSX, worksheet, dataRows.length);
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Extracted Documents");
@@ -98,7 +101,11 @@ function safeTimestamp(value: string): string {
   return value.replace(/[:.]/g, "-");
 }
 
-function applyWorksheetStyles(worksheet: XLSX.WorkSheet, dataRowCount: number) {
+function applyWorksheetStyles(
+  XLSX: XlsxModule,
+  worksheet: Worksheet,
+  dataRowCount: number,
+) {
   workbookHeaders.forEach((_, columnIndex) => {
     const headerCell = XLSX.utils.encode_cell({ r: 0, c: columnIndex });
     worksheet[headerCell].s = {

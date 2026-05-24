@@ -8,10 +8,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 
 loadEnv(path.join(rootDir, ".env"));
+if (process.env.DOCSCALPEL_ENV_PATH) {
+  loadEnv(process.env.DOCSCALPEL_ENV_PATH);
+}
 
-const port = Number(process.env.LOCAL_API_PORT || 8787);
+const defaultPort = Number(process.env.LOCAL_API_PORT || 8787);
 const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const maxBodyBytes = 30 * 1024 * 1024;
+let activeServer;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,7 +52,35 @@ const extractionSchema = {
   },
 };
 
-const server = http.createServer(async (request, response) => {
+export function startLocalApi(options = {}) {
+  if (activeServer) return activeServer;
+
+  const port = Number(options.port || defaultPort);
+  const server = http.createServer(handleRequest);
+  activeServer = server;
+
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.warn(`Local extraction API port ${port} is already in use.`);
+      activeServer = undefined;
+      return;
+    }
+
+    throw error;
+  });
+
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`Local extraction API running at http://127.0.0.1:${port}`);
+  });
+
+  server.on("close", () => {
+    if (activeServer === server) activeServer = undefined;
+  });
+
+  return server;
+}
+
+async function handleRequest(request, response) {
   try {
     if (request.method === "OPTIONS") {
       sendJson(response, 204, {});
@@ -81,11 +113,7 @@ const server = http.createServer(async (request, response) => {
       error: error.publicMessage || error.message || "Local extraction failed.",
     });
   }
-});
-
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Local extraction API running at http://127.0.0.1:${port}`);
-});
+}
 
 async function extractDocument(input) {
   if (!process.env.OPENAI_API_KEY) {
@@ -270,4 +298,8 @@ function loadEnv(filePath) {
       process.env[key] = value;
     }
   }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  startLocalApi();
 }

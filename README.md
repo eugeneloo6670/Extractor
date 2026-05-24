@@ -2,7 +2,7 @@
 
 DocScalpel is a local-first document extraction app for receipts and invoices. It helps you upload scanned documents, extract key fields with OpenAI vision, review and edit the results, then export a clean Excel workbook.
 
-The browser app handles uploads, PDF/image preparation, bulk review, manual entries, inline edits, issue guidance, and Excel export. A small local Node API keeps your OpenAI API key out of the browser and performs the extraction request.
+The browser app handles uploads, PDF/image preparation, bulk review, manual entries, inline edits, issue guidance, and Excel export. A small local Node API keeps your OpenAI API key out of the browser and performs the extraction request. DocScalpel can also run inside an Electron desktop window.
 
 DocScalpel runs on your PC. OpenAI extraction still requires internet access.
 
@@ -54,6 +54,8 @@ LOCAL_API_PORT=8787
 
 ## Run
 
+Browser development mode:
+
 ```powershell
 npm.cmd run dev
 ```
@@ -70,6 +72,32 @@ The local API runs at:
 GET http://127.0.0.1:8787/api/health
 POST http://127.0.0.1:8787/api/document-extract
 ```
+
+Desktop development mode:
+
+```powershell
+npm.cmd run desktop:dev
+```
+
+Desktop production-style run:
+
+```powershell
+npm.cmd run desktop
+```
+
+Package an unpacked Windows desktop app:
+
+```powershell
+npm.cmd run package:win
+```
+
+Packaged desktop builds do not include `.env`. After installing, create this file if you want the installed app to hold its own settings:
+
+```text
+%APPDATA%\DocScalpel\.env
+```
+
+Use the same values shown in the setup section.
 
 ## Bulk Upload Flow
 
@@ -97,3 +125,10 @@ These are generated examples and do not contain private or real business data.
 ```powershell
 npm.cmd run build
 ```
+
+## Desktop App Notes
+
+- Electron starts the local extraction API automatically.
+- The desktop app still uses OpenAI over the internet for vision extraction.
+- The built web app is loaded from `dist/`, so `npm.cmd run desktop` runs a build first.
+- Windows desktop output is written to `release/DocScalpel-win32-x64/`.

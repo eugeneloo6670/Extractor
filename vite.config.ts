@@ -6,6 +6,7 @@ const rootDir = path.resolve(__dirname);
 
 export default defineConfig({
   root: rootDir,
+  base: "./",
   plugins: [react()],
   server: {
     host: "127.0.0.1",
