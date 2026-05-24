@@ -627,6 +627,12 @@ button:disabled {
   box-shadow: 0 0 0 3px rgba(31, 111, 100, 0.14);
 }
 
+.bulk-table input.missing-required {
+  border-color: #9f2c1c;
+  background: #fff1e8;
+  box-shadow: inset 4px 0 0 #9f2c1c;
+}
+
 .bulk-table input:disabled {
   color: #6d675f;
   background: #eee9de;

@@ -113,8 +113,18 @@ export default function App() {
   }
 
   async function handleExport() {
-    const rows = items
-      .filter((item) => item.status === "ready")
+    const readyItems = items.filter((item) => item.status === "ready");
+    const missingTotalItems = readyItems.filter((item) => isBlank(item.extracted.total));
+
+    if (missingTotalItems.length) {
+      setError(
+        `${missingTotalItems.length} ready row${missingTotalItems.length === 1 ? "" : "s"} missing Total. Fill Total before exporting.`,
+      );
+      setStage("review");
+      return;
+    }
+
+    const rows = readyItems
       .map((item) => ({
         originalFileName: item.originalFileName,
         extracted: item.extracted,
@@ -160,6 +170,7 @@ export default function App() {
   }
 
   function updateField(id: string, key: keyof ExtractedFields, value: string) {
+    setError("");
     setItems((current) =>
       current.map((item) =>
         item.id === id
@@ -458,7 +469,7 @@ function buildIssues(error: string, items: BatchItem[]): Issue[] {
     issues.push({
       id: "app-error",
       tone: "error",
-      title: "App action failed",
+      title: error.toLowerCase().includes("missing total") ? "Export blocked" : "App action failed",
       problem: error,
       fix: fixForMessage(error),
     });
@@ -484,9 +495,50 @@ function buildIssues(error: string, items: BatchItem[]): Issue[] {
         fix: fixForMessage(warning),
       });
     });
+
+    if (item.status === "ready" && isBlank(item.extracted.total)) {
+      issues.push({
+        id: `missing-total-${item.id}`,
+        tone: "error",
+        title: `${item.originalFileName} is missing Total`,
+        problem: "This row is ready, but the Total field is blank. Export is blocked so the spreadsheet does not receive an incomplete amount.",
+        fix: "Enter the document total in the highlighted Total cell, then export again.",
+      });
+    }
+
+    const missingFields = missingRecommendedFields(item.extracted);
+    if (item.status === "ready" && missingFields.length) {
+      issues.push({
+        id: `missing-info-${item.id}`,
+        tone: "warning",
+        title: `${item.originalFileName} has missing info`,
+        problem: `These fields are blank: ${missingFields.join(", ")}.`,
+        fix: "Fill the fields if they matter for your records. You can still export if Total is present.",
+      });
+    }
   }
 
   return issues;
+}
+
+function missingRecommendedFields(fields: ExtractedFields): string[] {
+  const checks: Array<[keyof ExtractedFields, string]> = [
+    ["vendor_name", "Vendor"],
+    ["document_number", "Document Number"],
+    ["document_date", "Date"],
+    ["currency", "Currency"],
+    ["subtotal", "Subtotal"],
+    ["tax", "Tax"],
+    ["payment_method", "Payment Method"],
+  ];
+
+  return checks
+    .filter(([key]) => isBlank(fields[key]))
+    .map(([, label]) => label);
+}
+
+function isBlank(value: unknown): boolean {
+  return String(value ?? "").trim() === "";
 }
 
 function fixForMessage(message: string): string {
@@ -494,6 +546,10 @@ function fixForMessage(message: string): string {
 
   if (normalized.includes("local extraction service is not running")) {
     return "Start the local API with npm.cmd run dev, then try the document again.";
+  }
+
+  if (normalized.includes("missing total")) {
+    return "Fill the highlighted Total cell for each ready row, then export again.";
   }
 
   if (normalized.includes("openai_api_key") || normalized.includes("authentication")) {

@@ -152,6 +152,7 @@ export function BulkReviewTable({
                   {columns.map((column) => (
                     <td key={column.key}>
                       <input
+                        className={isMissingRequiredField(item, column.key) ? "missing-required" : undefined}
                         type={column.type ?? "text"}
                         value={String(item.extracted[column.key] ?? "")}
                         min={column.key === "confidence" ? 0 : undefined}
@@ -318,6 +319,7 @@ function createRowsWindowHtml(items: BatchItem[], busy: boolean): string {
     input { width: 100%; min-width: 96px; min-height: 36px; border: 1px solid #cfc1a2; border-radius: 6px; padding: 7px 8px; color: #111111; background: #fffdf5; outline: none; }
     input:focus { border-color: #1f6f4a; box-shadow: 0 0 0 3px rgba(31, 111, 74, 0.14); }
     input:disabled { color: #68645a; background: #eadfc8; }
+    input.missing-required { border-color: #9f2c1c; background: #fff1e8; box-shadow: inset 4px 0 0 #9f2c1c; }
     .file { max-width: 210px; overflow-wrap: anywhere; font-weight: 800; }
     .badge { display: inline-grid; place-items: center; min-width: 86px; min-height: 28px; padding: 0 8px; border-radius: 999px; background: #eee3c9; font-size: 0.75rem; font-weight: 900; text-transform: capitalize; }
   </style>
@@ -364,6 +366,7 @@ function createRowsWindowRow(item: BatchItem, busy: boolean): string {
         item.status === "failed" ||
         (item.source === "manual" && column.key === "confidence");
       return `<td><input
+        class="${isMissingRequiredField(item, column.key) ? "missing-required" : ""}"
         data-id="${escapeHtml(item.id)}"
         data-key="${escapeHtml(column.key)}"
         type="${column.type ?? "text"}"
@@ -373,6 +376,10 @@ function createRowsWindowRow(item: BatchItem, busy: boolean): string {
       /></td>`;
     }).join("")}
   </tr>`;
+}
+
+function isMissingRequiredField(item: BatchItem, key: keyof ExtractedFields): boolean {
+  return item.status === "ready" && key === "total" && String(item.extracted.total ?? "").trim() === "";
 }
 
 function escapeHtml(value: string): string {

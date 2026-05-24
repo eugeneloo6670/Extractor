@@ -29,6 +29,25 @@ async function createWindow() {
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
+    if (url === "about:blank") {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          width: 1280,
+          height: 760,
+          minWidth: 900,
+          minHeight: 560,
+          title: "DocScalpel Rows",
+          backgroundColor: "#f5efdf",
+          webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true,
+          },
+        },
+      };
+    }
+
     shell.openExternal(url);
     return { action: "deny" };
   });
