@@ -27,6 +27,13 @@ export type ExtractedFields = {
   notes: string;
 };
 
+export type ColumnConfig = {
+  key: keyof ExtractedFields;
+  label: string;
+  enabled: boolean;
+  type?: "number" | "date";
+};
+
 export type PreparedDocument = {
   originalFileName: string;
   mimeType: string;

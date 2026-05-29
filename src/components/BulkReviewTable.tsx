@@ -6,50 +6,39 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { enabledColumns } from "../columnConfig";
 import type { ExportResult } from "../excelExport";
-import type { BatchItem, ExtractedFields } from "../types";
+import type { BatchItem, ColumnConfig, ExtractedFields } from "../types";
 
 type BulkReviewTableProps = {
   items: BatchItem[];
   busy: boolean;
+  columns: ColumnConfig[];
   exportResult: ExportResult | null;
+  onColumnsChange: (columns: ColumnConfig[]) => void;
   onFieldChange: (id: string, key: keyof ExtractedFields, value: string) => void;
   onManualAdd: (fields: ExtractedFields) => void;
   onReset: () => void;
   onExport: () => void;
 };
 
-const columns: Array<{
-  key: keyof ExtractedFields;
-  label: string;
-  type?: "number" | "date";
-}> = [
-  { key: "vendor_name", label: "Vendor" },
-  { key: "document_number", label: "Document Number" },
-  { key: "document_date", label: "Date", type: "date" },
-  { key: "currency", label: "Currency" },
-  { key: "subtotal", label: "Subtotal" },
-  { key: "tax", label: "Tax" },
-  { key: "total", label: "Total" },
-  { key: "payment_method", label: "Payment Method" },
-  { key: "confidence", label: "Confidence", type: "number" },
-  { key: "notes", label: "Comments" },
-];
-
-const manualColumns = columns.filter((column) => column.key !== "confidence");
-
 export function BulkReviewTable({
   items,
   busy,
+  columns,
   exportResult,
+  onColumnsChange,
   onFieldChange,
   onManualAdd,
   onReset,
   onExport,
 }: BulkReviewTableProps) {
   const [manualFields, setManualFields] = useState<ExtractedFields>(emptyManualFields);
+  const activeColumns = enabledColumns(columns);
+  const manualColumns = activeColumns.filter((column) => column.key !== "confidence");
   const readyCount = items.filter((item) => item.status === "ready").length;
   const exportedCount = items.filter((item) => item.status === "exported").length;
   const canExport = !busy && readyCount > 0;
@@ -84,7 +73,7 @@ export function BulkReviewTable({
     if (!popup) return;
 
     popup.document.open();
-    popup.document.write(createRowsWindowHtml(items, busy));
+    popup.document.write(createRowsWindowHtml(items, busy, activeColumns));
     popup.document.close();
     popup.focus();
   }
@@ -115,6 +104,51 @@ export function BulkReviewTable({
           >
             <RefreshCw size={18} aria-hidden="true" />
           </button>
+          <details className="column-settings">
+            <summary title="Customize columns">
+              <SlidersHorizontal size={18} aria-hidden="true" />
+            </summary>
+            <div className="column-settings-popover">
+              <div>
+                <p className="eyebrow">Column setup</p>
+                <h3>Inputs and Excel Columns</h3>
+              </div>
+              <div className="column-settings-list">
+                {columns.map((column) => (
+                  <label className="column-setting" key={column.key}>
+                    <input
+                      type="checkbox"
+                      checked={column.enabled}
+                      onChange={(event) =>
+                        onColumnsChange(
+                          columns.map((current) =>
+                            current.key === column.key
+                              ? { ...current, enabled: event.target.checked }
+                              : current,
+                          ),
+                        )
+                      }
+                    />
+                    <span>{fallbackColumnLabel(column.key)}</span>
+                    <input
+                      type="text"
+                      value={column.label}
+                      onChange={(event) =>
+                        onColumnsChange(
+                          columns.map((current) =>
+                            current.key === column.key
+                              ? { ...current, label: event.target.value }
+                              : current,
+                          ),
+                        )
+                      }
+                      disabled={!column.enabled}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -130,7 +164,7 @@ export function BulkReviewTable({
             <tr>
               <th>Status</th>
               <th>File</th>
-              {columns.map((column) => (
+              {activeColumns.map((column) => (
                 <th key={column.key}>{column.label}</th>
               ))}
             </tr>
@@ -149,7 +183,7 @@ export function BulkReviewTable({
                     ) : null}
                     {item.error ? <span className="row-error">{item.error}</span> : null}
                   </td>
-                  {columns.map((column) => (
+                  {activeColumns.map((column) => (
                     <td key={column.key}>
                       <input
                         className={isMissingRequiredField(item, column.key) ? "missing-required" : undefined}
@@ -173,7 +207,7 @@ export function BulkReviewTable({
               ))
             ) : (
               <tr>
-                <td className="empty-table" colSpan={columns.length + 2}>
+                <td className="empty-table" colSpan={activeColumns.length + 2}>
                   No documents queued.
                 </td>
               </tr>
@@ -296,7 +330,11 @@ function clampConfidence(value: string, allowBlank = false): number | "" {
   return Math.min(1, Math.max(0, numeric));
 }
 
-function createRowsWindowHtml(items: BatchItem[], busy: boolean): string {
+function createRowsWindowHtml(
+  items: BatchItem[],
+  busy: boolean,
+  columns: ColumnConfig[],
+): string {
   return `<!doctype html>
 <html>
 <head>
@@ -336,7 +374,7 @@ function createRowsWindowHtml(items: BatchItem[], busy: boolean): string {
         </tr>
       </thead>
       <tbody>
-        ${items.map((item) => createRowsWindowRow(item, busy)).join("")}
+        ${items.map((item) => createRowsWindowRow(item, busy, columns)).join("")}
       </tbody>
     </table>
   </div>
@@ -356,7 +394,7 @@ function createRowsWindowHtml(items: BatchItem[], busy: boolean): string {
 </html>`;
 }
 
-function createRowsWindowRow(item: BatchItem, busy: boolean): string {
+function createRowsWindowRow(item: BatchItem, busy: boolean, columns: ColumnConfig[]): string {
   return `<tr>
     <td><span class="badge">${escapeHtml(item.status)}</span></td>
     <td class="file">${escapeHtml(item.originalFileName)}</td>
@@ -389,4 +427,11 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function fallbackColumnLabel(key: keyof ExtractedFields): string {
+  return String(key)
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }

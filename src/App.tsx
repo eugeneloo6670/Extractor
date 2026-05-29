@@ -6,7 +6,8 @@ import {
   UploadCloud,
   XCircle,
 } from "lucide-react";
-import { ChangeEvent, DragEvent, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
+import { defaultColumns, enabledColumns } from "./columnConfig";
 import { BulkReviewTable } from "./components/BulkReviewTable";
 import { prepareDocument } from "./documentPrep";
 import {
@@ -14,7 +15,7 @@ import {
   type ExportResult,
 } from "./excelExport";
 import { extractDocument } from "./localApiClient";
-import type { BatchItem, ExtractedFields, Stage } from "./types";
+import type { BatchItem, ColumnConfig, ExtractedFields, Stage } from "./types";
 
 type Issue = {
   id: string;
@@ -46,17 +47,24 @@ const stageLabels: Array<{ id: Stage; label: string }> = [
   { id: "complete", label: "Complete" },
 ];
 
+const columnStorageKey = "docscalpel.columnSettings";
+
 export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("ready");
   const [items, setItems] = useState<BatchItem[]>([]);
+  const [columns, setColumns] = useState<ColumnConfig[]>(loadColumnSettings);
   const [activePreviewUrl, setActivePreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
 
   const busy = stage === "preparing" || stage === "extracting" || stage === "writing";
-  const issues = buildIssues(error, items);
+  const issues = buildIssues(error, items, columns);
+
+  useEffect(() => {
+    localStorage.setItem(columnStorageKey, JSON.stringify(columns));
+  }, [columns]);
 
   function updateItem(id: string, patch: Partial<BatchItem>) {
     setItems((current) =>
@@ -114,7 +122,10 @@ export default function App() {
 
   async function handleExport() {
     const readyItems = items.filter((item) => item.status === "ready");
-    const missingTotalItems = readyItems.filter((item) => isBlank(item.extracted.total));
+    const requiresTotal = enabledColumns(columns).some((column) => column.key === "total");
+    const missingTotalItems = requiresTotal
+      ? readyItems.filter((item) => isBlank(item.extracted.total))
+      : [];
 
     if (missingTotalItems.length) {
       setError(
@@ -135,7 +146,7 @@ export default function App() {
     try {
       setError("");
       setStage("writing");
-      const result = await downloadApprovedWorkbookRows(rows);
+      const result = await downloadApprovedWorkbookRows(rows, columns);
       setExportResult(result);
       setItems((current) =>
         current.map((item) =>
@@ -304,7 +315,9 @@ export default function App() {
         <BulkReviewTable
           items={items}
           busy={busy}
+          columns={columns}
           exportResult={exportResult}
+          onColumnsChange={setColumns}
           onFieldChange={updateField}
           onManualAdd={addManualEntry}
           onReset={reset}
@@ -462,8 +475,10 @@ function clampConfidence(value: string, allowBlank = false): number | "" {
   return Math.min(1, Math.max(0, numeric));
 }
 
-function buildIssues(error: string, items: BatchItem[]): Issue[] {
+function buildIssues(error: string, items: BatchItem[], columns: ColumnConfig[]): Issue[] {
   const issues: Issue[] = [];
+  const activeColumns = enabledColumns(columns);
+  const requiresTotal = activeColumns.some((column) => column.key === "total");
 
   if (error) {
     issues.push({
@@ -496,7 +511,7 @@ function buildIssues(error: string, items: BatchItem[]): Issue[] {
       });
     });
 
-    if (item.status === "ready" && isBlank(item.extracted.total)) {
+    if (item.status === "ready" && requiresTotal && isBlank(item.extracted.total)) {
       issues.push({
         id: `missing-total-${item.id}`,
         tone: "error",
@@ -506,7 +521,7 @@ function buildIssues(error: string, items: BatchItem[]): Issue[] {
       });
     }
 
-    const missingFields = missingRecommendedFields(item.extracted);
+    const missingFields = missingRecommendedFields(item.extracted, activeColumns);
     if (item.status === "ready" && missingFields.length) {
       issues.push({
         id: `missing-info-${item.id}`,
@@ -521,24 +536,50 @@ function buildIssues(error: string, items: BatchItem[]): Issue[] {
   return issues;
 }
 
-function missingRecommendedFields(fields: ExtractedFields): string[] {
-  const checks: Array<[keyof ExtractedFields, string]> = [
-    ["vendor_name", "Vendor"],
-    ["document_number", "Document Number"],
-    ["document_date", "Date"],
-    ["currency", "Currency"],
-    ["subtotal", "Subtotal"],
-    ["tax", "Tax"],
-    ["payment_method", "Payment Method"],
-  ];
-
-  return checks
-    .filter(([key]) => isBlank(fields[key]))
-    .map(([, label]) => label);
+function missingRecommendedFields(
+  fields: ExtractedFields,
+  columns: ColumnConfig[],
+): string[] {
+  return columns
+    .filter((column) => !["total", "confidence", "notes"].includes(String(column.key)))
+    .filter((column) => isBlank(fields[column.key]))
+    .map((column) => column.label.trim() || fallbackColumnLabel(column.key));
 }
 
 function isBlank(value: unknown): boolean {
   return String(value ?? "").trim() === "";
+}
+
+function fallbackColumnLabel(key: keyof ExtractedFields): string {
+  return String(key)
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function loadColumnSettings(): ColumnConfig[] {
+  try {
+    const stored = localStorage.getItem(columnStorageKey);
+    if (!stored) return defaultColumns;
+    return mergeColumnSettings(JSON.parse(stored));
+  } catch {
+    return defaultColumns;
+  }
+}
+
+function mergeColumnSettings(value: unknown): ColumnConfig[] {
+  if (!Array.isArray(value)) return defaultColumns;
+
+  return defaultColumns.map((defaultColumn) => {
+    const saved = value.find((column) => column?.key === defaultColumn.key);
+    if (!saved) return defaultColumn;
+
+    return {
+      ...defaultColumn,
+      enabled: typeof saved.enabled === "boolean" ? saved.enabled : defaultColumn.enabled,
+      label: typeof saved.label === "string" ? saved.label : defaultColumn.label,
+    };
+  });
 }
 
 function fixForMessage(message: string): string {

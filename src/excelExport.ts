@@ -1,37 +1,11 @@
-import type { ExtractedFields } from "./types";
+import { defaultColumns, enabledColumns } from "./columnConfig";
+import type { ColumnConfig, ExtractedFields } from "./types";
 
 type XlsxModule = typeof import("xlsx-js-style");
 type Worksheet = Record<string, any>;
 
-export const workbookHeaders = [
-  "Processed At",
-  "Original File Name",
-  "Vendor Name",
-  "Document Number",
-  "Document Date",
-  "Currency",
-  "Subtotal",
-  "Tax",
-  "Total",
-  "Payment Method",
-  "Confidence",
-  "Comments",
-];
-
-const columnStyles = [
-  { width: 22 },
-  { width: 28 },
-  { width: 24 },
-  { width: 20 },
-  { width: 16 },
-  { width: 12 },
-  { width: 14 },
-  { width: 14 },
-  { width: 14 },
-  { width: 20 },
-  { width: 14 },
-  { width: 34 },
-];
+const baseWorkbookHeaders = ["Processed At", "Original File Name"];
+const baseColumnStyles = [{ width: 22 }, { width: 28 }];
 
 const headerFill = "DDEEE7";
 const bodyFill = "F2FAF6";
@@ -49,41 +23,44 @@ export type ApprovedWorkbookRow = {
 export function downloadApprovedWorkbook(
   originalFileName: string,
   extracted: ExtractedFields,
+  columns: ColumnConfig[] = defaultColumns,
 ): Promise<ExportResult> {
-  return downloadApprovedWorkbookRows([{ originalFileName, extracted }]);
+  return downloadApprovedWorkbookRows([{ originalFileName, extracted }], columns);
 }
 
 export async function downloadApprovedWorkbookRows(
   rows: ApprovedWorkbookRow[],
+  columns: ColumnConfig[] = defaultColumns,
 ): Promise<ExportResult> {
   if (!rows.length) {
     throw new Error("There are no extracted rows to export.");
   }
 
   const XLSX = await import("xlsx-js-style");
+  const exportColumns = enabledColumns(columns);
+  const workbookHeaders = [
+    ...baseWorkbookHeaders,
+    ...exportColumns.map((column) => displayLabel(column)),
+  ];
   const processedAt = new Date().toISOString();
   const dataRows = rows.map(({ originalFileName, extracted }) => [
     processedAt,
     originalFileName,
-    extracted.vendor_name,
-    extracted.document_number,
-    extracted.document_date,
-    extracted.currency,
-    extracted.subtotal,
-    extracted.tax,
-    extracted.total,
-    extracted.payment_method,
-    extracted.confidence,
-    extracted.notes,
+    ...exportColumns.map((column) => extracted[column.key]),
   ]);
 
   const worksheet = XLSX.utils.aoa_to_sheet([workbookHeaders, ...dataRows]);
-  worksheet["!cols"] = columnStyles.map((style) => ({ wch: style.width }));
-  worksheet["!autofilter"] = { ref: XLSX.utils.encode_range({
-    s: { r: 0, c: 0 },
-    e: { r: dataRows.length, c: workbookHeaders.length - 1 },
-  }) };
-  applyWorksheetStyles(XLSX, worksheet, dataRows.length);
+  worksheet["!cols"] = [
+    ...baseColumnStyles,
+    ...exportColumns.map((column) => ({ width: columnWidth(column) })),
+  ].map((style) => ({ wch: style.width }));
+  worksheet["!autofilter"] = {
+    ref: XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: dataRows.length, c: workbookHeaders.length - 1 },
+    }),
+  };
+  applyWorksheetStyles(XLSX, worksheet, dataRows.length, workbookHeaders, exportColumns);
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Extracted Documents");
@@ -105,6 +82,8 @@ function applyWorksheetStyles(
   XLSX: XlsxModule,
   worksheet: Worksheet,
   dataRowCount: number,
+  workbookHeaders: string[],
+  exportColumns: ColumnConfig[],
 ) {
   workbookHeaders.forEach((_, columnIndex) => {
     const headerCell = XLSX.utils.encode_cell({ r: 0, c: columnIndex });
@@ -119,21 +98,22 @@ function applyWorksheetStyles(
       const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
       if (!worksheet[address]) continue;
 
+      const exportColumn = exportColumns[columnIndex - baseWorkbookHeaders.length];
       worksheet[address].s = {
         fill: solidFill(bodyFill),
         alignment: {
-          horizontal: columnIndex >= 6 && columnIndex <= 10 ? "right" : "left",
+          horizontal: isNumericColumn(exportColumn) ? "right" : "left",
           vertical: "top",
           wrapText: true,
         },
         border: thinBorder("D9E2EC"),
       };
 
-      if (columnIndex >= 6 && columnIndex <= 8) {
+      if (["subtotal", "tax", "total"].includes(String(exportColumn?.key))) {
         worksheet[address].z = "#,##0.00";
       }
 
-      if (columnIndex === 10) {
+      if (exportColumn?.key === "confidence") {
         worksheet[address].z = "0.00";
       }
     }
@@ -143,6 +123,26 @@ function applyWorksheetStyles(
     { hpt: 20 },
     ...Array.from({ length: dataRowCount }, () => ({ hpt: 24 })),
   ];
+}
+
+function displayLabel(column: ColumnConfig): string {
+  return column.label.trim() || fallbackColumnLabel(column.key);
+}
+
+function columnWidth(column: ColumnConfig): number {
+  if (column.key === "notes") return 34;
+  return Math.max(12, displayLabel(column).length + 4);
+}
+
+function isNumericColumn(column: ColumnConfig | undefined): boolean {
+  return ["subtotal", "tax", "total", "confidence"].includes(String(column?.key));
+}
+
+function fallbackColumnLabel(key: keyof ExtractedFields): string {
+  return String(key)
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function solidFill(rgb: string) {
